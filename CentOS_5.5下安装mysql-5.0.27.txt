@@ -1,0 +1,137 @@
+CentOS 5.5下安装mysql-5.0.27
+
+下载mysql-5.0.27.tar.gz：
+http://www.ntu-tw.lkams.kernel.org/pub/MySQL/Downloads/MySQL-5.0/
+
+解压：tar zxvf mysql-5.0.27.tar.gz
+
+# cd mysql-5.0.27
+# mkdir /program/mysql
+
+---
+# ./configure --prefix=/program/mysql --localstatedir=/var/lib/mysql --with-comment=Source --with-server-suffix=-Community --with-mysqld-user=mysql --without-debug --with-big-tables --with-charset=gbk --with-collation=utf8_general_ci --with-extra-charsets=all --with-pthread --enable-static --enable-thread-safe-client --with-client-ldflags=-all-static --with-mysqld-ldflags=-all-static --enable-assembler --without-innodb --without-ndb-debug --with-charset=utf8
+
+统一编码，都使用utf8
+--with-collation=utf8_general_ci
+--with-charset=utf8
+---
+mysql编译参数说明：根据 ./configure --help 查看支持配置的参数
+如下链接：http://wubolu.javaeye.com/blog/624132
+
+---
+错误：checking for termcap functions library... configure: error: No curses/termcap library found
+解决：在configure后增加–with-named-curses-libs=/usr/lib/libncurses.so.5
+# ./configure --prefix=/program/mysql --localstatedir=/var/lib/mysql --with-comment=Source --with-server-suffix=-Community --with-mysqld-user=mysql --without-debug --with-big-tables --with-charset=gbk --with-collation=utf8_general_ci --with-extra-charsets=all --with-pthread --enable-static --enable-thread-safe-client --with-client-ldflags=-all-static --with-mysqld-ldflags=-all-static --enable-assembler --without-innodb --without-ndb-debug --with-charset=utf8 --with-named-curses-libs=/usr/lib/libncurses.so.5
+
+[root@localhost mysql-5.0.27]# make
+
+出现错误：
+/usr/bin/ld: attempted static link of dynamic object `/usr/lib/libncurses.so.5'
+collect2: ld returned 1 exit status
+make[2]: *** [mysql] 错误 1
+make[2]: Leaving directory `/home/navy/Desktop/mysql-5.0.27/client'
+make[1]: *** [all-recursive] 错误 1
+make[1]: Leaving directory `/home/navy/Desktop/mysql-5.0.27'
+make: *** [all] 错误 2
+
+解决方法：
+检查是否已经安装以下的辅助软件包
+[root@localhost mysql-5.0.27]# rpm -q ncurses
+ncurses-5.5-24.20060715
+[root@localhost mysql-5.0.27]# rpm -q ncurses-devel
+package ncurses-devel is not installed
+提示ncurses-devel没有安装，用yum安装：
+[root@localhost mysql-5.0.27]# yum install ncurses-devel
+Setting up Install Process
+Total download size: 1.6 M
+Is this ok [y/N]: y
+Downloading Packages:
+Installed: ncurses-devel.i386 0:5.5-24.20060715                                         
+Complete!
+
+---
+重新configure，make时再次出现错误：
+/usr/bin/ld: attempted static link of dynamic object `/usr/lib/libncurses.so.5'
+collect2: ld returned 1 exit status
+make[2]: *** [mysql] 错误 1
+make[2]: Leaving directory `/home/navy/Desktop/mysql-5.0.27/client'
+make[1]: *** [all-recursive] 错误 1
+make[1]: Leaving directory `/home/navy/Desktop/mysql-5.0.27'
+make: *** [all] 错误 2
+解决方法：
+在configure时将选项“--with-named-curses-libs=/usr/lib/libncurses.so.5”去除
+# ./configure --prefix=/program/mysql --localstatedir=/var/lib/mysql --with-comment=Source --with-server-suffix=-Community --with-mysqld-user=mysql --without-debug --with-big-tables --with-charset=gbk --with-collation=utf8_general_ci --with-extra-charsets=all --with-pthread --enable-static --enable-thread-safe-client --with-client-ldflags=-all-static --with-mysqld-ldflags=-all-static --enable-assembler --without-innodb --without-ndb-debug --with-charset=utf8
+
+[root@localhost mysql-5.0.27]# make
+make成功！
+[root@localhost mysql-5.0.27]# make install
+
+---
+[root@localhost mysql-5.0.27]# useradd mysql //添加 mysql 用户
+[root@localhost mysql-5.0.27]# cd /program/mysql/
+[root@localhost mysql]# bin/mysql_install_db --user=mysql
+Installing all prepared tables
+[root@localhost mysql]# chown -R root:mysql . //设置权限，注意后面有一个 "."
+[root@localhost mysql]# chown -R mysql /var/lib/mysql //设置 mysql 目录权限
+[root@localhost mysql]# chgrp -R mysql . //注意后面有一个 "."
+[root@localhost mysql]# cp share/mysql/my-huge.cnf /etc/my.cnf
+cp：是否覆盖“/etc/my.cnf”? y
+[root@localhost mysql]# cp share/mysql/mysql.server /etc/rc.d/init.d/mysqld //开机自动启动 mysql
+cp：是否覆盖“/etc/rc.d/init.d/mysqld”? y
+[root@localhost mysql]# chkconfig --add mysqld
+[root@localhost mysql]# /etc/rc.d/init.d/mysqld start //启动 MySQL
+Starting MySQL
+[root@localhost mysql]# bin/mysqladmin -u root password "要设置的密码"  (周亚平：mysql)
+[root@localhost mysql]# service mysqld stop //关闭 MySQL
+Shutting down MySQL
+
+---
+统一编码
+1.2.1首先要确保centos5以中文方式安装，我测试过先按英文方式安装，可后来怎么也配不上中文字符集。重新用中文方式安装，字符集都会自动加载了，免去很多烦恼。
+如果不放心，确认一下：
+vi /etc/sysconfig/i18n (确保其内容是这样的.)
+LANG="zh_CN.UTF-8"
+查看变量：env
+export LANG=zh_CN.UTF-8
+如果都是这样，就正确了！
+
+1.2.2修改mysql的配置文件,使数据库与服务器操作系统的字符集设置一致。
+vi /etc/my.cnf 设置(如果没有发现这个文件，就新建1个)
+[mysqld]
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
+default-character-set=utf8 (增加的关键一句,使得数据库缺省以utf8存储)
+当然，修改后，要重启数据库。
+再次用mysql -u root -p命令进入数据库系统，用SHOW VARIABLES LIKE 'character_set_%';命令查看到如下内容：
++--------------------------+--------------------------------------+
+| Variable_name            | Value                                |
++--------------------------+--------------------------------------+
+| character_set_client     | latin1                               |
+| character_set_connection | latin1                               |
+| character_set_database   | utf8                                 |
+| character_set_filesystem | binary                               |
+| character_set_results    | latin1                               |
+| character_set_server     | utf8                                 |
+| character_set_system     | utf8                                 |
+| character_sets_dir       | /program/mysql/share/mysql/charsets/ |
++--------------------------+--------------------------------------+
+
+但这样还不够，还要保证客户端也是用utf8的字符集来操作的。
+登录的时候，要用以下命令：mysql --default-character-set=utf8 -u root -p
+再次用SHOW VARIABLES LIKE 'character_set_%';命令查看，结果变成了：
+mysql> SHOW VARIABLES LIKE 'character_set_%';
++--------------------------+--------------------------------------+
+| Variable_name            | Value                                |
++--------------------------+--------------------------------------+
+| character_set_client     | utf8                                 |
+| character_set_connection | utf8                                 |
+| character_set_database   | utf8                                 |
+| character_set_filesystem | binary                               |
+| character_set_results    | utf8                                 |
+| character_set_server     | utf8                                 |
+| character_set_system     | utf8                                 |
+| character_sets_dir       | /program/mysql/share/mysql/charsets/ |
++--------------------------+--------------------------------------+
+
+也可以用set改变编码，不过退出sql后，不能保存。
+set character_set_client=utf8;

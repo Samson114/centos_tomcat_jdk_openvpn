@@ -1,0 +1,623 @@
+Centos6.0+JDK1.6+Httpd2+Tomcat6+JK1.2+mysql6.0+mysql-connector-java配置Servlet/JSP服务器
+2011-07-12 11:26
+折腾了一个星期了，最开始发布此文章的时候还以为自己配置好了，最后发现搞笑，连mysql都没装呢，原本开始是用CentOS5.5，正好释放了CentOS6.0，就换了6.0系统进行尝试，5.5对chrome支持不是很好，我又非常需要他，因为网页翻译功能，我的英语很烂，又经常会去英文网站查找资料，没办法，很多软件下载要去老外的，问题分析也是老外的比较全，我网上看了好多个文章，没有一个和我要用的是一样的，我借鉴了几家的，综合修改了下。写出来做个备份，留给有可能需要的人。PS:下载的软件版本不一样编译的时候貌似也不一样，我就是综合了几位大侠的又修改了一些设置才能安装成功。
+
+一.下载需要的包：
+
+                1.  jdk-6u26-linux-i586.bin                http://www.oracle.com/technetwork/java/javase/downloads/jdk-6u26-download-400750.html
+
+                2.  httpd-2.2.19.tar.gz                             http://httpd.apache.org/download.cgi
+
+                3.  apache-tomcat-6.0.32.tar.gz              http://tomcat.apache.org/download-60.cgi
+
+                4.  tomcat-connectors-1.2.32-src.tar.gz  http://tomcat.apache.org/download-connectors.cgi
+
+                5.mysql-6.0.10-alpha.tar.gz    http://download.softagency.net/mysql/Downloads/MySQL-6.0/               
+
+                6.mysql-connector-java-5.1.17-bin.jar    http://www.mysql.com/downloads/connector/j/
+
+二.安装JDK
+
+1.检查系统默认的gci，#rpm -qa | grep gci
+
+??显示出查询的版本号
+
+  根据版本号，卸载gci，yum -y remove java。。。。版本号
+
+2.卸载默认安装的openjava，不知道和sun的有什么区别，网上的大侠说要给卸载了，不过openoffice也被一起卸载了，我没卸载，后来查看不卸载也行，就是配置环境变量的时候自己的JDK要在前面，默认是谁在前面就调用谁
+
+3.安装JDK1.6
+
+           进去JDK所在的目录，#./ jdk-6u26-linux-i586.bin
+
+           创建一个java目录 #mkdir /usr/local/java
+
+           将解压后的目录移动到/usr/local/java
+
+4.配置java的环境参数
+
+          #vim /etc/profile（也可以在/etc/profiled/下载建一个.sh的脚本，我的是java和tomcat写在一起了java_tomcat.sh)
+
+          在文件最后写入JAVA_HOME=/usr/local/java/jdk1.6.0_26                 （根据实际安装的目录去写路径）                       
+
+                                   CLASSPATH=.:$JAVA_HOME/lib/tools.jar:$JAVA_HOME/lib/dt.jar
+                                   PATH=$JAVA_HOME/bin:$JAVA_HOME/jre/bin:$PATH:$HOME/bin(为了默认调用我自己配置的这个JDK我将java的环境变量放在了前面，不知道会不会有影响，以后发现问题再修正）
+
+                                   export  JAVA_HOME CLASSPATH PATH
+
+                                  # java -version   测试java版本
+
+5.编写一段java程序测试下，是否安装成功
+
+      #vim HelloWorld.java
+                                   public class HelloWorld{
+
+                                             public static void main(String args[]){
+
+                                                       System.out.println("HelloWorld");
+
+                                             }
+
+                                     }
+
+          #javac HelloWorld.java
+
+          #java HelloWorld
+
+    运行成功后，JDK安装配置完成
+
+三. 安装Tomcat
+
+         1.解压tomcat #tart -xzf apache-tomcat-6.0.32.tar.gz
+
+         2. 将解压后的文件夹移动到 /usr/local/tomcat
+
+               安装完成，因为tomcat可以直接使用
+        
+         3.# vim ~/.bash_profile 加入 tomcat 环境参数
+
+                TOMCAT_HOME=/usr/local/tomcat
+
+                 export PATH JAVA_HOME CLASSPATH TOMCAT_HOME
+           # source .bash_profile  环境变量生效
+
+
+
+此处是我个人的配置方法，简单说明了下环境变量应该写在哪里
+
+我最终的环境变量是将java和tomcat写在了一起，在/etc/profile.d/下新建了一个java_tomcat.sh,内容如下：
+
+#####java and tomcat environment variables
+
+JAVA_HOME=/usr/local/java/jdk1.6.0_26
+
+CLASSPATH=.:$JAVA_HOME/lib/tools.jar:$JAVA_HOME/lib/dt.jar
+
+PATH=$JAVA_HOME/bin:$JAVA_HOME/jre/bin:$PATH:$HOME/bin
+
+TOMCAT_HOME=/usr/local/tomcat
+
+export JAVA_HOME CLASSPATH PATH TOMCATPATH
+
+最终怎么写还是看实际需要，三个地方都可以写，/etc/profile，~/.bashrc ,/etc/profiled/下新建.sh
+
+有人说写在~/.bashrc下安全，我只是练习，直接写了.sh ，因为写在profile不好找，里面东西多了怕乱
+
+         4.#./usr/local/bin/startup.sh (开启服务)
+
+              在浏览器中输入http://localhost:8080 !~测试下！~如果出现了tomcat的页面，正常启动
+
+              #./usr/local/bin/shutdown.sh （关闭服务）
+         5.也可以查看 tomcat端口是否打开
+
+           # netstat -tnl 查看 8080  8009 这2个端口，如果打开了，证明tomcat正常运行。
+
+             tcp        0      0 :::8009        :::*             LISTEN
+             tcp        0      0 :::8080        :::*             LISTEN
+         6.配置服务器 启动时候自动运行tomcat 
+            # vim /etc/rc.d/rc.local
+               export JDK_HOME=/usr/java/jdk1.6.0_26
+               export JAVA_HOME=/usr/java/jdk1.6.0_26
+               /usr/local/tomcat/bin/startup.sh
+
+参考资料：http://www.centospub.com/make/servlet.html
+
+                  http://blog.csdn.net/paulluo0739/article/details/6575619
+
+ 
+
+四。 安装mysql （原本打算安装上面下载好的tarball，不过测试了很多次都未能成功，安装后启动总是出问题，又没找到原因，暂时yum安装了，以后再研究了）
+
+           1.安装mysql 和mysql-server
+
+               #yum install mysql mysql-server
+
+           2.安装完成后启动/etc/inid.d/mysqld start
+
+                                停止/etc/inid.d/mysqld stop
+
+            3.测试 mysql -u root
+
+                        成功的话, 出现 
+                        mysql>
+                        mysql>\s
+                        mysql>\q
+
+                        mysql>show databases;显示现在的表
+
+              4.开机自动启动将命令写入 vi /etc/rc.d/rc.local
+
+ 
+
+五。 编译安装mysql
+
+1.解压mysql的tar vxzf mysql-6.0.10-alpha.tar.gz (最好留着源码，貌似可以卸载用，我还没试过，先留着了）
+
+2.进入目录进行 －> 配置，编译，安装
+
+# ./configure --prefix=/usr/local/mysql --with-unix-socket-path=/tmp/mysql.sock --with-mysqld-user=mysqld（参数是抄来的，没试过，其他还不是很明白作用，暂时就指定这三个了）
+
+参数选项说明：（蓝色部分此处是抄来留着以后看，本次安装暂用不到）
+
+--prefix=/opt/mysql 将MySQL安装到目录/usr/local/mysql下 
+
+--with-charset=utf8 指定缺省字符集为utf8
+
+--with-extra-charsets=all 将MySQL所有支持的字符集编译进来
+
+--with-tcp-port=3306 指定此MySQL实例将监听TCP 3306端口
+
+--with-unix-socket-path=/tmp/mysql.sock 指定UNIX socket文件的路径（为绝对路径）
+
+--wih-mysqld-user=mysqld 指定用来运行MySQL守护进程的用户
+
+--with-federated-storage-engine 支持federated存储引擎
+
+--with-plugins=innobase  支持innobase数据库(5.1+，默认为空
+
+--without-debug \去除debug模式 
+
+--with-extra-charsets=gb2312 \添加gb2312中文字符支持 
+
+--enable-assembler \使用一些字符函数的汇编版本 
+
+--without-isam \去掉isam表类型支持 现在很少用了 isam表是一种依赖平台的表 (5.0以前)
+
+--without-innodb \去掉innodb表支持 innodb是一种支持事务处理的表,适合企业级应用 5.0以前)
+
+--with-pthread \强制使用pthread库(posix线程库) 
+
+--enable-thread-safe-client \以线程方式编译客户端 
+
+--with-client-ldflags=-all-static \ 
+
+--with-mysqld-ldflags=-all-static \以纯静态方式编译服务端和客户端 
+
+ 
+
+优化编译：
+
+1. -static  13% 
+
+--with-client-ldflags=-all-static
+
+--with-mysqld-ldflags=-all-static
+
+静态链接提高13%性能
+
+ 
+
+2. -pgcc  1%
+
+CFLAGS="-O3 -mpentiumpro -mstack-align-double" CXX=gcc \
+
+CXXFLAGS="-O3 -mpentiumpro -mstack-align-double \
+
+-felide-constructors -fno-exceptions -fno-rtti"
+
+如果是Inter处理器，使用pgcc提高1%性能
+
+ 
+
+3. Unix Socket  7.5%
+
+--with-unix-socket-path=/usr/local/mysql/tmp/mysql.sock
+
+使用unix套接字链接提高7.5%性能，所以在windows下mysql性能肯定不如unix下面
+
+ 
+
+4. --enable-assembler 
+
+允许使用汇编模式(优化性能)
+
+  
+
+ 
+
+如：./configure --prefix=/opt/aimcpro10/mysql-5.1.45  --with-client-ldflags=-all-static --with-mysqld-ldflags=-all-static --with-unix-socket-path=/opt/aimcpro10/mysql-5.1.45/mysql.sock
+
+--enable-assembler --with-charset=utf8 --with-extra-charsets=gbk  --with-plugins=innobase,myisam
+
+ 
+
+出现错误：checking for termcap functions library... configure: error: No curses/termcap library found
+
+缺少ncurses安装包: 我yum install ncurses-devel 将这个包安装上了
+
+重新执行上面命令
+
+提示信息：Thank you for choosing MySQL! 竟然成功了，成功出现了makefile
+
+ 
+
+# make  要好长的时间啊 此步要确保gcc和g++全部安装！～缺少的话会报错
+
+# make install 时间也很长，最后的时候停在make[4]: Entering directory `/home/elon/src/Linux_Http_tomcat_mysql/mysql-6.0.10-alpha/mysql-test提示下不动，耐心等待，看提示信息猜测应该是在测试什么吧
+
+3.初始化数据库
+
+拷贝配置文件:cp /usr/local/share/mysql/my-large.cnf /etc/my.cnf
+
+cd 到安装好的mysql文件夹
+
+#cd /bin
+
+#./mysql_install_db  会在安装目录（mysql）下创建出var目录
+
+报错，忘记记录错误信息了。。。。。。
+
+解决：# vi /etc/my.cnf
+
+找到 skip-federated  注释掉 ，也就是改成 ####skip-federated  然后保存退出（报的错就是和federated有关的）
+
+# ./mysqld_safe &
+
+# cp /usr/local/mysql/share/mysql.server /etc/init.d/mysqld  以后启动就可以用mysqld了！～
+
+        # 测试mysql的信息/usr/local/mysql/bin/mysql --version
+
+# netstat -tnl   可以看到3306端口
+
+#cd /usr/local/mysql/bin
+
+#./mysql -u root
+
+成功显示，安装完成！～
+
+4.关闭 
+
+#/etc/init.d/mysqld stop
+
+参考资料：http://blogold.chinaunix.net/u2/60332/showart_480705.html
+
+ 
+
+六.安装apache-httpd-2.3.12
+
+1.解压：
+
+]#tar -xzf httpd-2.3.12-beta.tar.gz -C /home/elon/src (我是将源码都安装到src了，以前没做这个，建议源码保存，为了方便卸载，虽然不知道是否写了卸载脚本，我以后会将编译安装的源码全部都放到src去保存）
+
+2.进入目录，配置，编译，安装
+
+]# ./configure --help 可以先查看下安装帮助信息，英语比较烂，就不看了，遇到问题的时候./configure --help | grep 错误的提示信息，这样可以少看点英文
+
+]# mkdir /usr/local/apache-httpd
+
+]# ./configure --prefix=/usr/local/apache-httpd --enable-modules
+
+网上一些文档建议加上--enable-modules，说是以后apache 可以添加其他的模块，我就先给加上了
+
+此处未必每个人都会出现，如果不出现错误可以跳过，我之前用CentOS5.5装的时候就很顺利，一个错误也没出现，基础差啊！～现在我都不知道为什么5.5没有错误6.0就这么多，也只能是出现了再解决，以后知道原因会写上的。
+
+2.1.出现错误：
+
+Configuring Apache Portable Runtime library ...
+
+ 
+
+checking for APR... no
+
+configure: error: APR not found.  Please read the documentation.
+
+应该是缺少APR吧，去下载安装，下载地址：http://apr.apache.org/download.cgi
+
+不知道是干什么用的，也不打算配置他（以后再研究）直接./configure  make  makeinstall 安装成功
+
+ 
+
+再次执行./configure --prefix=/usr/local/apache-httpd --enable-modules
+
+2.2.继续出错：
+
+checking for APR-util... no
+
+configure: error: APR-util not found.  Please read the documentation.
+
+安装APR-util 下载地址：http://apr.apache.org/download.cgi （刚刚还不如都下载下来了呢，就在APR的下面。。。。。。）
+
+]#./configure 
+
+2.2.1竟然也出错了：
+
+checking for APR... configure: error: --with-apr requires a directory or file to be provided
+
+]# ./configure --prefix=/usr/local/apr-util --with-apr=/usr/local/apr (这次指定下安装路径吧，没想到还会用到APR，谁知道一会会不会用到这个）
+
+]# make
+
+]# make install
+
+ 
+
+继续]#./configure --prefix=/usr/local/apache-httpd --enable-modules 
+
+2.3.还是报错：configure: error: APR-util not found.  Please read the documentation.
+
+ 
+
+继续]#./configure --prefix=/usr/local/apache-httpd --enable-modules --with-apr=/usr/local/apr --with-apr-util=/usr/local/apr-util  加上这两个参数继续
+
+2.4.又出错了（都快习惯了，不错都快感觉不正常了）：configure: error: pcre-config for libpcre not found. PCRE is required and available from http://pcre.org/
+
+好吧，缺少pcre-config就安装pcre-config吧，下载地址：http://pcre.org （我直接去他提示的地方下载的）
+
+]# ./configure --prefix=/usr/local/pcre
+
+#make
+
+#make install
+
+继续]#./configure --prefix=/usr/local/apache-httpd --enable-modules --with-apr=/usr/local/apr --with-apr-util=/usr/local/apr-util --with-pcre=/usr/local/pcre  加上新安装的pcre
+
+http-2.3.12]# make 时间变长了，貌似不会出错了
+
+http-2.3.12]# make install  安装完成，不容易啊！～
+
+ 
+
+3.启动服务：/usr/local/apache-httpd/bin/apachectl start
+
+4.测试是否成功
+
+bin]# netstat -tnl
+
+tcp        0      0 0.0.0.0:80                  0.0.0.0:*                   LISTEN     
+
+ 80端口开启
+
+ 打开浏览器，输入http://localhost(也可以输入127.0.0.1）  出现：It works!   
+
+ 证明服务启动成功！！！！
+
+5.设置开机自动启动（我暂时没设置，怕影响电脑速度，我手动）
+
+#vi /etc/rc.d/rc.local
+
+增加一行 /sbin/apachectl start
+
+ 
+
+参考资料：http://code.sh/linux/apache%E9%81%87%E5%88%B0%E7%9A%84%E9%97%AE%E9%A2%98%EF%BC%9Aapr-not-found/  这篇文章我觉得很好，不光解决了错误，还教了方法
+
+ 
+
+七.编译安装tomcat-connectors(网上都叫JK，我从官网找到的就是这个） 链接器 整合apache httpd和tomcat
+
+ 1.解压tomcat-connectors-1.2.32
+
+ 2.进入，配置，编译
+
+ 进入native这个目录
+
+ native]# mkdir /usr/local/tomcat-connectors
+
+ native]# ./configure --with-apxs=/usr/local/apache-httpd/bin/apxs
+
+ 3.cp编译完成生成的 mod_jk.so 文件到apache modules 目录
+
+ native]# cd apache-2.0/
+
+ apache-2.0]# cp mod_jk.so /usr/local/apache-httpd/modules/
+
+ 4.修改 apache 配置文件
+
+ 4.1 
+
+ 在Apache的conf目录新建立两个文件，mod_jk.conf和workers.properties文件  
+
+        mod_jk.conf的内容是jk的配置文件，包括装载模块和日志信息以及指定解析的工作器和目录，workers.properties是Tomcat wokers的配置文件。  
+
+   4.2
+
+        在mod_jk.conf里加入以下内容(mod_jk.conf文件是方便管理，而不需要把配置都写在httpd.conf里)  
+
+        #加载jk模块，名字要对应  
+
+        LoadModule jk_module "/usr/local/apache-httpd/modules/mod_jk.so"
+
+        # 加载刚才新建的workers.properties文件  
+
+        JkWorkersFile "/usr/local/apache-httpd/conf/workers.properties" 
+
+        # Jk日志文件  
+
+        JkLogFile logs/mod_jk.log  
+
+        # Jk日志的级别，参数有[debug/error/info]  
+
+        JkShmFile logs/mod_jk.shm  
+
+        JkLogLevel info  
+
+        # Jk日志的数据格式  
+
+        JkLogStampFormat "[%a %b %d %H:%M:%S %Y] "  
+
+        # Jk的一些配置选项 indicate to send SSL KEY SIZE,  
+
+        JkOptions +ForwardKeySize +ForwardURICompat -ForwardDirectories  
+
+        # Jk请求日志的格式  
+
+        JkRequestLogFormat "%w %V %T"  
+
+  
+
+        #JSP do Servlet文件交由Tomcat处理  
+
+        JkMount /servlet/* ajp13      
+
+        JkMount /*.jsp ajp13  
+
+        JkMount /*.do ajp13      
+
+        # JkMount 表示使用Tomcat来解析， JkUnMount则相反  
+
+ 
+
+    4.3
+
+  编辑Apache的httpd.conf文件，把jk_mod.conf文件装载进来：  
+
+        Include conf/mod_jk.conf         
+
+ 
+
+ 4.4
+
+ tomcat 配置文件路径：
+
+ 编辑/usr/local/tomcat/conf/server.xml
+
+ 在 <Host 段中加入：
+
+ 
+
+ <Context path="" docBase="/usr/local/apache-httpd/htdocs" debug="0"
+
+   reloadable="true" crossContext="true"/> 
+
+ 
+
+ 4.5
+
+ 重新启动Apache和Tomcat
+
+ 在重启apache后不能启动，查看error_log，最后一条：[Sun Jul 17 10:11:07.000626 2011] [jk:error] [pid 3460:tid 3079575760] (2)No such file or directory: mod_jk: could not open JkLog file /var/log/httpd/mod_jk.log
+
+ 不能打开JKlog 去查看，没有mod_jk.log文件，建一个
+
+ ]#mkdir /var/log/httpd   ]#touch /var/log/httpd/mod_jk.log
+
+ 重启服务，成功
+
+ 
+
+ 4.6 测试
+
+ 在 /usr/local/apache-httpd/htdocs/ 下 删掉 index.html
+
+ ]# vim index.jsp 写个简单的测试
+
+ <%
+
+ out.println( "Hello" );
+
+ %>
+
+ 打开浏览器,输入http://localhost   显示Hello   
+
+ 配置成功
+
+ 
+
+ 到此简单配置完成，但是还有很多我不明白的地方，以后使用的时候再去查找修改，毕竟全部环境还未完成
+
+ 
+
+参考资料：http://jiake.iteye.com/blog/298145
+
+ 
+
+八. jsp使用 mysql-connector 连接 mysql数据库
+
+ 
+
+1.将mysql-connector-java-5.1.17-bin.jar移动到/usr/local/tomcat/lib/
+
+2.cd 到apache的 htdocs目录下，测试下
+
+vim test_mysql.jsp  写入如下信息(此段代码是网上下载的，根据实际情况修改名户名和密码）
+
+<%@ page language="java" %>
+
+<%@ page import="com.mysql.jdbc.Driver" %>
+
+<%@ page import="java.sql.*" %>
+
+ 
+
+<%
+
+ 
+
+String driverName="com.mysql.jdbc.Driver";
+
+ 
+
+String userName="root";
+
+ 
+
+String userPasswd="";
+
+ 
+
+String dbName="test";
+
+ 
+
+String url="jdbc:mysql://localhost/"+dbName+"?user="+userName+"&password="+userPasswd;
+
+ 
+
+Class.forName("com.mysql.jdbc.Driver").newInstance();
+
+try
+
+{
+
+Connection connection=DriverManager.getConnection(url);
+
+ 
+
+out.println(" O K !");
+
+ 
+
+connection.close();
+
+}
+
+catch( Exception e )
+
+{
+
+out.println( "connent mysql error:" + e );
+
+}
+
+ 
+
+%>
+
+ 
+
+3.重启开启mysql服务，重启tomcat服务
+
+4.测试，在web服务器输入http//:localhost/test_mysql.jsp  出现OK！，成功*-*
+
+到此配置成功，我也是菜鸟，将我配置的过程记录了下来，希望能对你有所帮助
+
